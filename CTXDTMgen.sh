@@ -2,6 +2,8 @@
 
 ctx_list=$(ls *.IMG | sed -e 's/\..*$//')
 
+set -- $ctx_list
+
 echo
 echo ----- Images to be processed -----
 
@@ -12,7 +14,8 @@ done
 
 echo ----------------------------------
 echo
-
+echo Preprocessing...
+echo
 for ctx_image in $ctx_list;
 do 
 	echo Processing file: $ctx_image.IMG
@@ -33,22 +36,38 @@ do
 	ctxevenodd from=$ctx_image.cal.cub to=$ctx_image.eo.cal.cub
 	
 	wait
-	echo " $" cam2map from=$ctx_image.eo.cal.cub to=$ctx_image.map.cub matchmap=no pixres=CAMERA defaultrange=MINIMIZE
-	cam2map from=$ctx_image.eo.cal.cub to=$ctx_image.map.cub matchmap=no pixres=CAMERA defaultrange=MINIMIZE
-
-	wait
-	echo " $" gdal_translate -ot Float32 -of GTiff -co bigtiff=if_safer $ctx_image.map.cub $ctx_image.final.tif
-	gdal_translate -ot Float32 -of GTiff -co bigtiff=if_safer $ctx_image.map.cub $ctx_image.final.tif
-
-	rm $ctx_image.cub
-	rm $ctx_image.cal.cub
-	rm $ctx_image.eo.cal.cub
-	rm $ctx_image.map.cub
-
 	echo
 	echo
 
 done
+
+echo ----------------------------------
+echo
+echo Generating DTM...
+echo
+
+echo " $" cam2map4stereo.py $1.eo.cal.cub $2.eo.cal.cub
+cam2map4stereo.py $1.eo.cal.cub $2.eo.cal.cub
+
+echo " $" parallel_stereo $1.map.cub $2.map.cub results/out
+parallel_stereo $1.map.cub $2.map.cub results/out
+
+echo " $" point2dem results/out-PC.tif
+point2dem results/out-PC.tif
+
+echo "Removing extra files"
+rm $1.cub
+rm $1.cal.cub
+rm $1.eo.cal.cub
+rm $1.map.cub
+
+rm $2.cub
+rm $2.cal.cub
+rm $2.eo.cal.cub
+rm $2.map.cub
+
+echo Done!
+echo ----------------------------------
 
 exit 0
 
